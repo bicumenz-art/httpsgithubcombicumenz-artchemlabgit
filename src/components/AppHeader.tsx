@@ -1,6 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
 
 export function AppHeader() {
+  const { profile, user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    await signOut();
+    navigate({ to: "/login" });
+  };
   return (
     <header className="relative z-10 border-b border-[rgba(0,245,255,0.2)] backdrop-blur-md bg-[rgba(1,8,18,0.7)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
@@ -17,10 +24,17 @@ export function AppHeader() {
             </span>
           </div>
         </Link>
-        <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.3em] text-[rgba(150,220,230,0.6)]">
-          <span className="h-2 w-2 rounded-full bg-[#39ff14] shadow-[0_0_8px_#39ff14]" />
-          system online
-        </div>
+        {user && (
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.3em] text-[rgba(150,220,230,0.7)]">
+              <span className="h-2 w-2 rounded-full bg-[#39ff14] shadow-[0_0_8px_#39ff14]" />
+              <span className="text-green-glow">{profile?.username ?? "operator"}</span>
+            </div>
+            <button onClick={handleLogout} className="btn-neon btn-neon-danger">
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

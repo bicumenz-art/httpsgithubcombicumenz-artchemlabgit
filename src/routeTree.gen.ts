@@ -9,86 +9,155 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as NewRouteImport } from './routes/new'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as RecipesRecipeIdRouteImport } from './routes/recipes.$recipeId'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
+import { Route as AuthenticatedRecipesRecipeIdRouteImport } from './routes/_authenticated/recipes.$recipeId'
 
-const NewRoute = NewRouteImport.update({
-  id: '/new',
-  path: '/new',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const RecipesRecipeIdRoute = RecipesRecipeIdRouteImport.update({
-  id: '/recipes/$recipeId',
-  path: '/recipes/$recipeId',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedRecipesRecipeIdRoute =
+  AuthenticatedRecipesRecipeIdRouteImport.update({
+    id: '/recipes/$recipeId',
+    path: '/recipes/$recipeId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/new': typeof NewRoute
-  '/recipes/$recipeId': typeof RecipesRecipeIdRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/new': typeof AuthenticatedNewRoute
+  '/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/new': typeof NewRoute
-  '/recipes/$recipeId': typeof RecipesRecipeIdRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/new': typeof AuthenticatedNewRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/new': typeof NewRoute
-  '/recipes/$recipeId': typeof RecipesRecipeIdRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/_authenticated/new': typeof AuthenticatedNewRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/new' | '/recipes/$recipeId'
+  fullPaths: '/' | '/login' | '/register' | '/new' | '/recipes/$recipeId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/new' | '/recipes/$recipeId'
-  id: '__root__' | '/' | '/new' | '/recipes/$recipeId'
+  to: '/login' | '/register' | '/new' | '/' | '/recipes/$recipeId'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/login'
+    | '/register'
+    | '/_authenticated/new'
+    | '/_authenticated/'
+    | '/_authenticated/recipes/$recipeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  NewRoute: typeof NewRoute
-  RecipesRecipeIdRoute: typeof RecipesRecipeIdRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/new': {
-      id: '/new'
-      path: '/new'
-      fullPath: '/new'
-      preLoaderRoute: typeof NewRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/recipes/$recipeId': {
-      id: '/recipes/$recipeId'
+    '/_authenticated/new': {
+      id: '/_authenticated/new'
+      path: '/new'
+      fullPath: '/new'
+      preLoaderRoute: typeof AuthenticatedNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/recipes/$recipeId': {
+      id: '/_authenticated/recipes/$recipeId'
       path: '/recipes/$recipeId'
       fullPath: '/recipes/$recipeId'
-      preLoaderRoute: typeof RecipesRecipeIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedRecipesRecipeIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedNewRoute: typeof AuthenticatedNewRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedRecipesRecipeIdRoute: typeof AuthenticatedRecipesRecipeIdRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedNewRoute: AuthenticatedNewRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedRecipesRecipeIdRoute: AuthenticatedRecipesRecipeIdRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  NewRoute: NewRoute,
-  RecipesRecipeIdRoute: RecipesRecipeIdRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
