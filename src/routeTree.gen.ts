@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
+import { Route as AuthenticatedRecipesRecipeIdRouteImport } from './routes/_authenticated/recipes.$recipeId'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -39,18 +40,26 @@ const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedRecipesRecipeIdRoute =
+  AuthenticatedRecipesRecipeIdRouteImport.update({
+    id: '/recipes/$recipeId',
+    path: '/recipes/$recipeId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/new': typeof AuthenticatedNewRoute
+  '/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/new': typeof AuthenticatedNewRoute
   '/': typeof AuthenticatedIndexRoute
+  '/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +68,13 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/recipes/$recipeId': typeof AuthenticatedRecipesRecipeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/register' | '/new'
+  fullPaths: '/' | '/login' | '/register' | '/new' | '/recipes/$recipeId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/register' | '/new' | '/'
+  to: '/login' | '/register' | '/new' | '/' | '/recipes/$recipeId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -72,6 +82,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/_authenticated/new'
     | '/_authenticated/'
+    | '/_authenticated/recipes/$recipeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -117,17 +128,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/recipes/$recipeId': {
+      id: '/_authenticated/recipes/$recipeId'
+      path: '/recipes/$recipeId'
+      fullPath: '/recipes/$recipeId'
+      preLoaderRoute: typeof AuthenticatedRecipesRecipeIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedRecipesRecipeIdRoute: typeof AuthenticatedRecipesRecipeIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedRecipesRecipeIdRoute: AuthenticatedRecipesRecipeIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -142,3 +162,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
