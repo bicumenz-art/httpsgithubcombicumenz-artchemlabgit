@@ -75,8 +75,8 @@ export function useRecipes() {
           user_id: user.id,
           name: input.name,
           description: input.description,
-          stages: input.stages ?? [],
-          canvas: { nodes: [], edges: [] },
+          stages: (input.stages ?? []) as never,
+          canvas: { nodes: [], edges: [] } as never,
         })
         .select()
         .single();
@@ -113,6 +113,9 @@ export async function updateRecipe(
   id: string,
   patch: Partial<Pick<Recipe, "name" | "description" | "stages" | "canvas">>
 ) {
-  const { error } = await supabase.from("recipes").update(patch).eq("id", id);
+  const { error } = await supabase
+    .from("recipes")
+    .update(patch as never)
+    .eq("id", id);
   if (error) throw error;
 }
