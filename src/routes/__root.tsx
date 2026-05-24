@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { AppHeader } from "@/components/AppHeader";
+import { AuthProvider } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -120,12 +120,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="relative z-10 min-h-screen">
-        <AppHeader />
-        <main className="mx-auto max-w-6xl px-5 py-8 animate-page">
+      <AuthProvider>
+        <div className="relative z-10 min-h-screen">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
