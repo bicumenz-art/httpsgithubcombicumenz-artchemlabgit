@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { AppHeader } from "@/components/AppHeader";
 
 function NotFoundComponent() {
   return (
@@ -119,7 +120,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <div className="relative z-10 min-h-screen">
+        <AppHeader />
+        <main className="mx-auto max-w-6xl px-5 py-8 animate-page">
+          <Outlet />
+        </main>
+      </div>
     </QueryClientProvider>
   );
 }
