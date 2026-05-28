@@ -213,10 +213,12 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   const persistRef = useRef(persistCanvas);
+  const canvasRef = useRef(canvas);
   useEffect(() => {
     nodesRef.current = nodes;
     edgesRef.current = edges;
     persistRef.current = persistCanvas;
+    canvasRef.current = canvas;
   });
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
@@ -232,18 +234,15 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     persistRef.current(nodesRef.current, next);
   }, []);
 
-  const handleConnect = useCallback(
-    (conn: Connection) => {
-      const next = addEdge(
-        { ...conn, id: uid(), animated: true, type: "smoothstep" },
-        edges
-      );
-      persistCanvas(nodes, next);
-    },
-    [nodes, edges, persistCanvas]
-  );
+  const handleConnect = useCallback((conn: Connection) => {
+    const next = addEdge(
+      { ...conn, id: uid(), animated: true, type: "smoothstep" },
+      edgesRef.current
+    );
+    persistRef.current(nodesRef.current, next);
+  }, []);
 
-  const addBlock = () => {
+  const addBlock = useCallback(() => {
     const newStage: Stage = {
       id: uid(),
       name: "New Stage",
@@ -251,20 +250,25 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
       conditions: "",
       output: "",
     };
+    const currentCanvas = canvasRef.current;
+    const currentCanvasNodes = currentCanvas?.nodes ?? [];
     onStagesChange([...stages, newStage]);
-    // place at offset
     onCanvasChange({
-      ...canvas,
+      ...currentCanvas,
       nodes: [
-        ...canvasNodes,
+        ...currentCanvasNodes,
         {
           id: newStage.id,
-          position: { x: 100 + canvasNodes.length * 60, y: 100 + canvasNodes.length * 40 },
+          position: {
+            x: 100 + currentCanvasNodes.length * 60,
+            y: 100 + currentCanvasNodes.length * 40,
+          },
           data: { stageId: newStage.id },
         },
       ],
     });
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages, onStagesChange, onCanvasChange]);
 
   const deleteSelected = () => {
     if (selected.nodes.length === 0 && selected.edges.length === 0) return;
@@ -283,17 +287,18 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     setSelected({ nodes: [], edges: [] });
   };
 
-  const editLabel = (edgeId: string) => {
-    const existing = canvasEdges.find((e) => e.id === edgeId);
+  const editLabel = useCallback((edgeId: string) => {
+    const currentEdges = edgesRef.current;
+    const currentCanvas = canvasRef.current;
+    const existing = currentCanvas.edges?.find((e) => e.id === edgeId);
     const label = prompt("Edge label:", existing?.label ?? "");
     if (label === null) return;
-    onCanvasChange({
-      ...canvas,
-      edges: canvasEdges.map((e) =>
+    persistRef.current(nodesRef.current,
+      currentEdges.map((e) =>
         e.id === edgeId ? { ...e, label: label || undefined } : e
-      ),
-    });
-  };
+      )
+    );
+  }, []);
 
   // Auto-persist when a stage is added but canvas.nodes is missing entry
   useEffect(() => {
