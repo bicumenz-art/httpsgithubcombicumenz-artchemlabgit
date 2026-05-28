@@ -123,10 +123,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const nodeTypes = { stage: StageNode };
+const edgeTypes = {};
 
 function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) {
   const canvasNodes = canvas?.nodes ?? [];
   const canvasEdges = canvas?.edges ?? [];
+
+  // Safety-net memoization in case these are ever moved inside the component.
+  const memoNodeTypes = useMemo(() => nodeTypes, []);
+  const memoEdgeTypes = useMemo(() => edgeTypes, []);
 
   const editStage = useCallback(
     (id: string, patch: Partial<Stage>) => {
@@ -335,7 +340,8 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
       <ReactFlow
         nodes={nodes ?? []}
         edges={edges ?? []}
-        nodeTypes={nodeTypes}
+        nodeTypes={memoNodeTypes}
+        edgeTypes={memoEdgeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
