@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import ReactFlow, {
@@ -129,10 +130,6 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
   const canvasNodes = canvas?.nodes ?? [];
   const canvasEdges = canvas?.edges ?? [];
 
-  // Safety-net memoization in case these are ever moved inside the component.
-  const memoNodeTypes = useMemo(() => nodeTypes, []);
-  const memoEdgeTypes = useMemo(() => edgeTypes, []);
-
   const editStage = useCallback(
     (id: string, patch: Partial<Stage>) => {
       onStagesChange(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -212,25 +209,28 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     [onCanvasChange]
   );
 
-  const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      const next = applyNodeChanges(changes, nodes);
-      // ignore selection changes for persistence; persist on position changes
-      const hasPositionOrRemove = changes.some(
-        (c) => c.type === "position" || c.type === "remove"
-      );
-      if (hasPositionOrRemove) persistCanvas(next, edges);
-    },
-    [nodes, edges, persistCanvas]
-  );
+  // Refs keep handlers stable (empty deps) without going stale.
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  const persistRef = useRef(persistCanvas);
+  useEffect(() => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+    persistRef.current = persistCanvas;
+  });
 
-  const handleEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      const next = applyEdgeChanges(changes, edges);
-      persistCanvas(nodes, next);
-    },
-    [nodes, edges, persistCanvas]
-  );
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    const next = applyNodeChanges(changes, nodesRef.current);
+    const hasPositionOrRemove = changes.some(
+      (c) => c.type === "position" || c.type === "remove"
+    );
+    if (hasPositionOrRemove) persistRef.current(next, edgesRef.current);
+  }, []);
+
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    const next = applyEdgeChanges(changes, edgesRef.current);
+    persistRef.current(nodesRef.current, next);
+  }, []);
 
   const handleConnect = useCallback(
     (conn: Connection) => {
@@ -340,8 +340,8 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
       <ReactFlow
         nodes={nodes ?? []}
         edges={edges ?? []}
-        nodeTypes={memoNodeTypes}
-        edgeTypes={memoEdgeTypes}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
