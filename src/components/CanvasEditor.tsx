@@ -251,10 +251,10 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     onCanvasChange({
       ...canvas,
       nodes: [
-        ...canvas.nodes,
+        ...canvasNodes,
         {
           id: newStage.id,
-          position: { x: 100 + canvas.nodes.length * 60, y: 100 + canvas.nodes.length * 40 },
+          position: { x: 100 + canvasNodes.length * 60, y: 100 + canvasNodes.length * 40 },
           data: { stageId: newStage.id },
         },
       ],
@@ -264,7 +264,7 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
   const deleteSelected = () => {
     if (selected.nodes.length === 0 && selected.edges.length === 0) return;
     const remainingStages = stages.filter((s) => !selected.nodes.includes(s.id));
-    const remainingEdges = canvas.edges.filter(
+    const remainingEdges = canvasEdges.filter(
       (e) =>
         !selected.edges.includes(e.id) &&
         !selected.nodes.includes(e.source) &&
@@ -272,19 +272,19 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     );
     onStagesChange(remainingStages);
     onCanvasChange({
-      nodes: canvas.nodes.filter((n) => !selected.nodes.includes(n.id)),
+      nodes: canvasNodes.filter((n) => !selected.nodes.includes(n.id)),
       edges: remainingEdges,
     });
     setSelected({ nodes: [], edges: [] });
   };
 
   const editLabel = (edgeId: string) => {
-    const existing = canvas.edges.find((e) => e.id === edgeId);
+    const existing = canvasEdges.find((e) => e.id === edgeId);
     const label = prompt("Edge label:", existing?.label ?? "");
     if (label === null) return;
     onCanvasChange({
       ...canvas,
-      edges: canvas.edges.map((e) =>
+      edges: canvasEdges.map((e) =>
         e.id === edgeId ? { ...e, label: label || undefined } : e
       ),
     });
@@ -297,12 +297,12 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
     onCanvasChange({
       ...canvas,
       nodes: [
-        ...canvas.nodes,
+        ...canvasNodes,
         ...missing.map((s, i) => ({
           id: s.id,
           position: {
-            x: 80 + (canvas.nodes.length + i) * 60,
-            y: 80 + (canvas.nodes.length + i) * 40,
+            x: 80 + (canvasNodes.length + i) * 60,
+            y: 80 + (canvasNodes.length + i) * 40,
           },
           data: { stageId: s.id },
         })),
@@ -312,7 +312,7 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
   }, [stages.length]);
 
   return (
-    <div className="relative h-[70vh] min-h-[500px] glass-card neon-border rounded-md overflow-hidden">
+    <div className="relative h-[70vh] min-h-[500px] glass-card neon-border rounded-md overflow-hidden" style={{ height: "70vh" }}>
       <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
         <button onClick={addBlock} className="btn-neon btn-neon-green">
           + Add Block
@@ -333,8 +333,8 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
         // double-click node name to rename · click edge to label
       </div>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodes ?? []}
+        edges={edges ?? []}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
