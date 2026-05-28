@@ -125,8 +125,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const nodeTypes = { stage: StageNode };
 
 function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) {
-  const canvasNodes = canvas.nodes ?? [];
-  const canvasEdges = canvas.edges ?? [];
+  const canvasNodes = canvas?.nodes ?? [];
+  const canvasEdges = canvas?.edges ?? [];
 
   const editStage = useCallback(
     (id: string, patch: Partial<Stage>) => {
