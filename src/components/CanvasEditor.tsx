@@ -1,3 +1,4 @@
+import "reactflow/dist/style.css";
 import {
   useCallback,
   useEffect,
@@ -21,7 +22,6 @@ import ReactFlow, {
   type NodeChange,
   type NodeProps,
 } from "reactflow";
-import "reactflow/dist/style.css";
 import type { CanvasData, Stage } from "@/lib/recipes";
 import { uid } from "@/lib/recipes";
 
@@ -125,6 +125,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const nodeTypes = { stage: StageNode };
 
 function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) {
+  const canvasNodes = canvas.nodes ?? [];
+  const canvasEdges = canvas.edges ?? [];
+
   const editStage = useCallback(
     (id: string, patch: Partial<Stage>) => {
       onStagesChange(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -135,9 +138,9 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
   // Build positions map and ensure every stage has a node
   const positions = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
-    canvas.nodes.forEach((n) => map.set(n.id, n.position));
+    canvasNodes.forEach((n) => map.set(n.id, n.position));
     return map;
-  }, [canvas.nodes]);
+  }, [canvasNodes]);
 
   const nodes: Node<NodePayload>[] = useMemo(() => {
     return stages.map((s, i) => {
@@ -156,7 +159,7 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
 
   const edges: Edge[] = useMemo(
     () =>
-      canvas.edges.map((e) => ({
+      canvasEdges.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
@@ -176,7 +179,7 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
         labelBgBorderRadius: 4,
         markerEnd: { type: "arrowclosed", color: "#00f5ff" } as never,
       })),
-    [canvas.edges]
+    [canvasEdges]
   );
 
   const [selected, setSelected] = useState<{ nodes: string[]; edges: string[] }>({
