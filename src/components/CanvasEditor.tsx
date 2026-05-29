@@ -1,11 +1,5 @@
 import "reactflow/dist/style.css";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -38,10 +32,20 @@ interface NodePayload {
   onEdit: (id: string, patch: Partial<Stage>) => void;
 }
 
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 last:mb-0">
+      <div className="font-mono text-[9px] uppercase tracking-[0.25em] text-[rgba(150,220,230,0.55)]">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function StageNode({ data, selected }: NodeProps<NodePayload>) {
   const { stage, onEdit } = data;
   const [editing, setEditing] = useState(false);
-
   return (
     <div
       className={
@@ -112,137 +116,161 @@ function StageNode({ data, selected }: NodeProps<NodePayload>) {
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-1.5 last:mb-0">
-      <div className="font-mono text-[9px] uppercase tracking-[0.25em] text-[rgba(150,220,230,0.55)]">
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
+// MUST be module-level — recreating these inside the component triggers
+// React Flow's StoreUpdater into an infinite setState loop.
 const nodeTypes = { stage: StageNode };
 const edgeTypes = {};
 
-function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) {
-  const canvasNodes = canvas?.nodes ?? [];
-  const canvasEdges = canvas?.edges ?? [];
+const EDGE_STYLE = {
+  animated: true,
+  type: "smoothstep",
+  style: { stroke: "#00f5ff", strokeWidth: 2, strokeDasharray: "6 4" },
+  labelBgStyle: { fill: "#010812", stroke: "#00f5ff", strokeWidth: 1 },
+  labelStyle: {
+    fill: "#00f5ff",
+    fontFamily: "JetBrains Mono, monospace",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase" as const,
+  },
+  labelBgPadding: [6, 4] as [number, number],
+  labelBgBorderRadius: 4,
+  markerEnd: { type: "arrowclosed", color: "#00f5ff" } as never,
+};
 
-  const editStage = useCallback(
-    (id: string, patch: Partial<Stage>) => {
-      onStagesChange(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-    },
-    [stages, onStagesChange]
-  );
-
-  // Build positions map and ensure every stage has a node
-  const positions = useMemo(() => {
-    const map = new Map<string, { x: number; y: number }>();
-    canvasNodes.forEach((n) => map.set(n.id, n.position));
-    return map;
-  }, [canvasNodes]);
-
-  const nodes: Node<NodePayload>[] = useMemo(() => {
-    return stages.map((s, i) => {
-      const pos = positions.get(s.id) ?? {
+function buildNodes(
+  stages: Stage[],
+  canvas: CanvasData,
+  onEdit: (id: string, patch: Partial<Stage>) => void
+): Node<NodePayload>[] {
+  const posMap = new Map<string, { x: number; y: number }>();
+  (canvas?.nodes ?? []).forEach((n) => posMap.set(n.id, n.position));
+  return stages.map((s, i) => ({
+    id: s.id,
+    type: "stage",
+    position:
+      posMap.get(s.id) ?? {
         x: 80 + (i % 3) * 320,
         y: 80 + Math.floor(i / 3) * 280,
-      };
-      return {
-        id: s.id,
-        type: "stage",
-        position: pos,
-        data: { stage: s, onEdit: editStage },
-      };
-    });
-  }, [stages, positions, editStage]);
+      },
+    data: { stage: s, onEdit },
+  }));
+}
 
-  const edges: Edge[] = useMemo(
-    () =>
-      canvasEdges.map((e) => ({
+function buildEdges(canvas: CanvasData): Edge[] {
+  return (canvas?.edges ?? []).map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    label: e.label,
+    ...EDGE_STYLE,
+  }));
+}
+
+function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) {
+  // Refs to latest props/state so handlers stay stable with [] deps.
+  const stagesRef = useRef(stages);
+  const onStagesChangeRef = useRef(onStagesChange);
+  const onCanvasChangeRef = useRef(onCanvasChange);
+
+  const editStage = useCallback((id: string, patch: Partial<Stage>) => {
+    const next = stagesRef.current.map((s) =>
+      s.id === id ? { ...s, ...patch } : s
+    );
+    onStagesChangeRef.current(next);
+  }, []);
+
+  // Internal state — NOT derived from props on each render.
+  const [nodes, setNodes] = useState<Node<NodePayload>[]>(() =>
+    buildNodes(stages, canvas, editStage)
+  );
+  const [edges, setEdges] = useState<Edge[]>(() => buildEdges(canvas));
+  const [selected, setSelected] = useState<{ nodes: string[]; edges: string[] }>(
+    { nodes: [], edges: [] }
+  );
+
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+
+  useEffect(() => {
+    stagesRef.current = stages;
+    onStagesChangeRef.current = onStagesChange;
+    onCanvasChangeRef.current = onCanvasChange;
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+  });
+
+  // Sync internal state when stage set changes from the outside
+  // (e.g. new block added externally) — keyed off length + id signature only.
+  const stageSig = stages.map((s) => s.id).join("|");
+  useEffect(() => {
+    setNodes((current) => {
+      const byId = new Map(current.map((n) => [n.id, n]));
+      return stages.map((s, i) => {
+        const existing = byId.get(s.id);
+        if (existing) {
+          return { ...existing, data: { stage: s, onEdit: editStage } };
+        }
+        return {
+          id: s.id,
+          type: "stage",
+          position: {
+            x: 80 + (current.length + i) * 60,
+            y: 80 + (current.length + i) * 40,
+          },
+          data: { stage: s, onEdit: editStage },
+        };
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageSig]);
+
+  const persistCanvas = (nextNodes: Node[], nextEdges: Edge[]) => {
+    onCanvasChangeRef.current({
+      nodes: nextNodes.map((n) => ({
+        id: n.id,
+        position: n.position,
+        data: { stageId: n.id },
+      })),
+      edges: nextEdges.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
-        label: e.label,
-        animated: true,
-        type: "smoothstep",
-        style: { stroke: "#00f5ff", strokeWidth: 2, strokeDasharray: "6 4" },
-        labelBgStyle: { fill: "#010812", stroke: "#00f5ff", strokeWidth: 1 },
-        labelStyle: {
-          fill: "#00f5ff",
-          fontFamily: "JetBrains Mono, monospace",
-          fontSize: 10,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        },
-        labelBgPadding: [6, 4],
-        labelBgBorderRadius: 4,
-        markerEnd: { type: "arrowclosed", color: "#00f5ff" } as never,
+        label: typeof e.label === "string" ? e.label : undefined,
       })),
-    [canvasEdges]
-  );
-
-  const [selected, setSelected] = useState<{ nodes: string[]; edges: string[] }>({
-    nodes: [],
-    edges: [],
-  });
-
-  // Persist canvas-only changes (positions/edges)
-  const persistCanvas = useCallback(
-    (nextNodes: Node[], nextEdges: Edge[]) => {
-      onCanvasChange({
-        nodes: nextNodes.map((n) => ({
-          id: n.id,
-          position: n.position,
-          data: { stageId: n.id },
-        })),
-        edges: nextEdges.map((e) => ({
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          label: typeof e.label === "string" ? e.label : undefined,
-        })),
-      });
-    },
-    [onCanvasChange]
-  );
-
-  // Refs keep handlers stable (empty deps) without going stale.
-  const nodesRef = useRef(nodes);
-  const edgesRef = useRef(edges);
-  const persistRef = useRef(persistCanvas);
-  const canvasRef = useRef(canvas);
-  useEffect(() => {
-    nodesRef.current = nodes;
-    edgesRef.current = edges;
-    persistRef.current = persistCanvas;
-    canvasRef.current = canvas;
-  });
+    });
+  };
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     const next = applyNodeChanges(changes, nodesRef.current);
-    const hasPositionOrRemove = changes.some(
-      (c) => c.type === "position" || c.type === "remove"
+    setNodes(next);
+    const shouldPersist = changes.some(
+      (c) =>
+        (c.type === "position" && (c as { dragging?: boolean }).dragging === false) ||
+        c.type === "remove"
     );
-    if (hasPositionOrRemove) persistRef.current(next, edgesRef.current);
+    if (shouldPersist) persistCanvas(next, edgesRef.current);
   }, []);
 
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     const next = applyEdgeChanges(changes, edgesRef.current);
-    persistRef.current(nodesRef.current, next);
+    setEdges(next);
+    const shouldPersist = changes.some(
+      (c) => c.type === "remove" || c.type === "add"
+    );
+    if (shouldPersist) persistCanvas(nodesRef.current, next);
   }, []);
 
   const handleConnect = useCallback((conn: Connection) => {
     const next = addEdge(
-      { ...conn, id: uid(), animated: true, type: "smoothstep" },
+      { ...conn, id: uid(), ...EDGE_STYLE },
       edgesRef.current
     );
-    persistRef.current(nodesRef.current, next);
+    setEdges(next);
+    persistCanvas(nodesRef.current, next);
   }, []);
 
-  const addBlock = useCallback(() => {
+  const addBlock = () => {
     const newStage: Stage = {
       id: uid(),
       name: "New Stage",
@@ -250,79 +278,58 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
       conditions: "",
       output: "",
     };
-    const currentCanvas = canvasRef.current;
-    const currentCanvasNodes = currentCanvas?.nodes ?? [];
-    onStagesChange([...stages, newStage]);
-    onCanvasChange({
-      ...currentCanvas,
-      nodes: [
-        ...currentCanvasNodes,
-        {
-          id: newStage.id,
-          position: {
-            x: 100 + currentCanvasNodes.length * 60,
-            y: 100 + currentCanvasNodes.length * 40,
-          },
-          data: { stageId: newStage.id },
-        },
-      ],
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stages, onStagesChange, onCanvasChange]);
+    const newNode: Node<NodePayload> = {
+      id: newStage.id,
+      type: "stage",
+      position: {
+        x: 100 + nodesRef.current.length * 60,
+        y: 100 + nodesRef.current.length * 40,
+      },
+      data: { stage: newStage, onEdit: editStage },
+    };
+    const nextNodes = [...nodesRef.current, newNode];
+    setNodes(nextNodes);
+    onStagesChangeRef.current([...stagesRef.current, newStage]);
+    persistCanvas(nextNodes, edgesRef.current);
+  };
 
   const deleteSelected = () => {
     if (selected.nodes.length === 0 && selected.edges.length === 0) return;
-    const remainingStages = stages.filter((s) => !selected.nodes.includes(s.id));
-    const remainingEdges = canvasEdges.filter(
+    const nextNodes = nodesRef.current.filter(
+      (n) => !selected.nodes.includes(n.id)
+    );
+    const nextEdges = edgesRef.current.filter(
       (e) =>
         !selected.edges.includes(e.id) &&
         !selected.nodes.includes(e.source) &&
         !selected.nodes.includes(e.target)
     );
-    onStagesChange(remainingStages);
-    onCanvasChange({
-      nodes: canvasNodes.filter((n) => !selected.nodes.includes(n.id)),
-      edges: remainingEdges,
-    });
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    onStagesChangeRef.current(
+      stagesRef.current.filter((s) => !selected.nodes.includes(s.id))
+    );
+    persistCanvas(nextNodes, nextEdges);
     setSelected({ nodes: [], edges: [] });
   };
 
-  const editLabel = useCallback((edgeId: string) => {
-    const currentEdges = edgesRef.current;
-    const currentCanvas = canvasRef.current;
-    const existing = currentCanvas.edges?.find((e) => e.id === edgeId);
-    const label = prompt("Edge label:", existing?.label ?? "");
+  const editLabel = (edgeId: string) => {
+    const existing = edgesRef.current.find((e) => e.id === edgeId);
+    const current = typeof existing?.label === "string" ? existing.label : "";
+    const label = prompt("Edge label:", current);
     if (label === null) return;
-    persistRef.current(nodesRef.current,
-      currentEdges.map((e) =>
-        e.id === edgeId ? { ...e, label: label || undefined } : e
-      )
+    const next = edgesRef.current.map((e) =>
+      e.id === edgeId ? { ...e, label: label || undefined } : e
     );
-  }, []);
-
-  // Auto-persist when a stage is added but canvas.nodes is missing entry
-  useEffect(() => {
-    const missing = stages.filter((s) => !positions.has(s.id));
-    if (missing.length === 0) return;
-    onCanvasChange({
-      ...canvas,
-      nodes: [
-        ...canvasNodes,
-        ...missing.map((s, i) => ({
-          id: s.id,
-          position: {
-            x: 80 + (canvasNodes.length + i) * 60,
-            y: 80 + (canvasNodes.length + i) * 40,
-          },
-          data: { stageId: s.id },
-        })),
-      ],
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stages.length]);
+    setEdges(next);
+    persistCanvas(nodesRef.current, next);
+  };
 
   return (
-    <div className="relative h-[70vh] min-h-[500px] glass-card neon-border rounded-md overflow-hidden" style={{ height: "70vh" }}>
+    <div
+      className="relative glass-card neon-border rounded-md overflow-hidden"
+      style={{ height: "70vh", minHeight: 500 }}
+    >
       <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
         <button onClick={addBlock} className="btn-neon btn-neon-green">
           + Add Block
@@ -333,7 +340,9 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
           disabled={selected.nodes.length === 0 && selected.edges.length === 0}
           style={{
             opacity:
-              selected.nodes.length === 0 && selected.edges.length === 0 ? 0.4 : 1,
+              selected.nodes.length === 0 && selected.edges.length === 0
+                ? 0.4
+                : 1,
           }}
         >
           ✕ Delete Selected
@@ -365,7 +374,10 @@ function CanvasInner({ stages, canvas, onStagesChange, onCanvasChange }: Props) 
         <MiniMap
           maskColor="rgba(1,8,18,0.85)"
           nodeColor="#00f5ff"
-          style={{ background: "#010812", border: "1px solid rgba(0,245,255,0.3)" }}
+          style={{
+            background: "#010812",
+            border: "1px solid rgba(0,245,255,0.3)",
+          }}
         />
         <Controls
           style={{
