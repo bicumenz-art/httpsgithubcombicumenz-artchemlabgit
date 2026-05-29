@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchRecipe,
   updateRecipe,
@@ -40,10 +40,19 @@ function RecipeDetailPage() {
     };
   }, [recipeId]);
 
-  const patch = (p: Partial<Recipe>) => {
+  const patch = useCallback((p: Partial<Recipe>) => {
     setRecipe((r) => (r ? { ...r, ...p } : r));
     setDirty(true);
-  };
+  }, []);
+
+  const handleStagesChange = useCallback(
+    (stages: Stage[]) => patch({ stages }),
+    [patch]
+  );
+  const handleCanvasChange = useCallback(
+    (canvas: CanvasData) => patch({ canvas }),
+    [patch]
+  );
 
   const save = async () => {
     if (!recipe) return;
@@ -131,8 +140,8 @@ function RecipeDetailPage() {
         <CanvasEditor
           stages={recipe.stages}
           canvas={recipe.canvas}
-          onStagesChange={(stages: Stage[]) => patch({ stages })}
-          onCanvasChange={(canvas: CanvasData) => patch({ canvas })}
+          onStagesChange={handleStagesChange}
+          onCanvasChange={handleCanvasChange}
         />
       )}
     </div>
